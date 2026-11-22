@@ -10,11 +10,20 @@ from langgraph.graph import END, START, StateGraph
 from services.catalog.store import Catalog
 from services.contracts.provider import ModelProvider
 from services.contracts.state import AgentState, GraphState
-from services.orchestrator.routing import COVERAGE_AFTER, INTAKE, VERIFY_FIRST, parse_request
+from services.orchestrator.routing import (
+    COVERAGE_AFTER,
+    DOCUMENTS,
+    INTAKE,
+    SETTLEMENT,
+    VERIFY_FIRST,
+    parse_request,
+)
 from services.orchestrator.workers import (
     make_coverage,
+    make_documents,
     make_finish,
     make_intake,
+    make_settlement,
     make_supervisor,
     make_verification,
 )
@@ -46,13 +55,17 @@ def build_graph(
     builder.add_node("intake", make_intake(catalog, provider))
     builder.add_node("verification", make_verification(catalog, provider))
     builder.add_node("coverage", make_coverage(catalog, provider))
+    builder.add_node("settlement", make_settlement(catalog, provider))
+    builder.add_node("documents", make_documents(catalog, provider))
     builder.add_node("finish", make_finish())
     builder.add_edge(START, "supervisor")
     builder.add_conditional_edges(
         "supervisor",
         _route_first,
-        ["intake", "verification", "finish"],
+        ["intake", "verification", "settlement", "documents", "finish"],
     )
+    builder.add_edge("settlement", "finish")
+    builder.add_edge("documents", "finish")
     builder.add_edge("intake", "finish")
     builder.add_conditional_edges("verification", _route_after, ["coverage", "finish"])
     builder.add_edge("coverage", "finish")
@@ -105,6 +118,10 @@ def _route_first(state: AgentState) -> str:
         return "intake"
     if scenario in VERIFY_FIRST:
         return "verification"
+    if scenario in SETTLEMENT:
+        return "settlement"
+    if scenario in DOCUMENTS:
+        return "documents"
     return "finish"
 
 

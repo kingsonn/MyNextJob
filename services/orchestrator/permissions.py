@@ -26,11 +26,18 @@ COVERAGE_TOOLS = [
     "graph.shared_contact",
     "graph.provider_cluster",
 ]
+SETTLEMENT_TOOLS = [
+    "claims.create_claim",
+    "payments.propose_payout",
+]
+DOCUMENT_TOOLS = ["docs.get_clause"]
 SUPERVISOR_TOOLS: list[str] = []
 
 ALLOW_LISTS = {
     "intake": INTAKE_TOOLS,
     "verification": VERIFICATION_TOOLS,
     "coverage": COVERAGE_TOOLS,
+    "settlement": SETTLEMENT_TOOLS,
+    "documents": DOCUMENT_TOOLS,
     "supervisor": SUPERVISOR_TOOLS,
 }

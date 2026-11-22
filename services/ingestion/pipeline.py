@@ -113,6 +113,11 @@ class Library:
         item.status = "published"
         return item
 
+    def retire(self, document_id: str, version: str) -> Version:
+        item = self.versions[(document_id, version)]
+        item.status = "retired"
+        return item
+
     def rollback(self, document_id: str, version: str, cache: SemanticCache) -> Version:
         item = self.versions[(document_id, version)]
         item.status = "retired"
@@ -151,7 +156,7 @@ class Library:
             raise Rejected("file failed validation")
 
 
-def parse_pdf(pdf: bytes) -> dict[str, Any]:
+def parse_pdf(pdf: bytes, *, use_ocr: bool = False) -> dict[str, Any]:
     reader = PdfReader(BytesIO(pdf))
     pages: list[dict[str, Any]] = []
     clauses: list[dict[str, Any]] = []
@@ -162,15 +167,15 @@ def parse_pdf(pdf: bytes) -> dict[str, Any]:
         extracted = page.extract_text() or ""
         if extracted.strip():
             confidence = 1.0
-            ocr = False
+            ocr_used = False
             text = extracted
         else:
-            confidence = 0.0
-            ocr = True
-            text = ""
-            flags.append("needs_review")
+            text, confidence = _ocr_page(pdf, use_ocr)
+            ocr_used = True
+            if confidence < 0.8:
+                flags.append("needs_review")
         texts.append(text)
-        pages.append({"page": number, "text": text, "confidence": confidence, "ocr": ocr})
+        pages.append({"page": number, "text": text, "confidence": confidence, "ocr": ocr_used})
         for line in text.splitlines():
             if INJECTION in line:
                 flags.append("hostile_instruction")
@@ -196,6 +201,14 @@ def parse_pdf(pdf: bytes) -> dict[str, Any]:
         "text": joined,
         "limit": limit,
     }
+
+
+def _ocr_page(pdf: bytes, use_ocr: bool) -> tuple[str, float]:
+    if not use_ocr:
+        return "", 0.0
+    from services.ingestion.ocr import read_pdf
+
+    return read_pdf(pdf)
 
 
 def _last_limit(text: str) -> str | None:

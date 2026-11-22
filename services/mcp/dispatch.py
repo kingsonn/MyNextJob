@@ -13,7 +13,9 @@ from services.contracts.envelope import (
     error_envelope,
     parse_envelope,
 )
+from services.mcp.claims_server.tools import CLAIM_TOOLS
 from services.mcp.crm_server.tools import CRM_TOOLS
+from services.mcp.docs_server.tools import DOC_TOOLS
 from services.mcp.graph_server.tools import GRAPH_TOOLS
 from services.mcp.payments_server.tools import PAYMENT_TOOLS
 from services.mcp.policy_server.tools import POLICY_TOOLS
@@ -23,7 +25,7 @@ from services.telemetry import span
 
 def tool_registry() -> dict[str, ToolSpec]:
     specs: dict[str, ToolSpec] = {}
-    for spec in (*POLICY_TOOLS, *CRM_TOOLS, *GRAPH_TOOLS, *PAYMENT_TOOLS):
+    for spec in (*POLICY_TOOLS, *CRM_TOOLS, *GRAPH_TOOLS, *PAYMENT_TOOLS, *CLAIM_TOOLS, *DOC_TOOLS):
         specs[spec.name] = spec
     return specs
 

@@ -1,1 +1,1 @@
-Incident runbooks for duplicate payouts, provider outages, and budgets. Not written in Phase 0.
+Incident runbooks for a guardrail bypass, a duplicate payout, a provider outage, and a runaway budget.

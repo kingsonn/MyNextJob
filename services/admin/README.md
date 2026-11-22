@@ -1,1 +1,1 @@
-Admin console for claims, policies, and audit. Not implemented in Phase 0.
+Server-rendered admin console. Every route checks a role. Uploaded PDFs stay on the library object.

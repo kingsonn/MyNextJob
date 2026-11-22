@@ -25,12 +25,9 @@ COVERAGE_AFTER = {
     "shared_contact_ring",
     "provider_cluster",
 }
-UNSUPPORTED = {
-    "duplicate_claim",
-    "payout_above_authority",
-    "document_injection",
-    "portal_injection",
-}
+SETTLEMENT = {"duplicate_claim", "payout_above_authority"}
+DOCUMENTS = {"document_injection"}
+UNSUPPORTED = {"portal_injection"}
 
 ANSWER_FIELDS: dict[str, tuple[str, ...]] = {
     "loss_outside_window": (
@@ -62,6 +59,16 @@ ANSWER_FIELDS: dict[str, tuple[str, ...]] = {
     ),
     "long_history": ("customer_id", "interaction_count", "min_interactions"),
     "identity_failure": ("customer_id", "identity_verified", "safe_refusal"),
+    "duplicate_claim": ("claim_count", "claim_id", "idempotency_key", "rejected_amount"),
+    "payout_above_authority": (
+        "adjuster_id",
+        "amount",
+        "authority_limit",
+        "claim_id",
+        "payment_id",
+        "requires_approval",
+    ),
+    "document_injection": ("document_id", "injection_present", "marker"),
 }
 
 

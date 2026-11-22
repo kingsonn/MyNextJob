@@ -128,6 +128,8 @@ def _publish(
         state["coverage_decision"] = answer
     elif destination == "claim_draft":
         state["claim_draft"] = answer
+    elif destination == "proposed_payout":
+        state["proposed_payout"] = answer
     state["messages"].append({"role": "assistant", "content": encoded})
 
 
@@ -320,6 +322,76 @@ def _one_tool(
 
 def _agrees(path: dict[str, Any], answer: dict[str, Any]) -> bool:
     return all(path.get(key) == value for key, value in answer.items())
+
+
+def make_settlement(catalog: Catalog, provider: ModelProvider) -> Any:
+    def settlement(state: AgentState) -> AgentState:
+        with span("node.settlement", trace_id=state["trace_id"]):
+            _enter(state, "settlement")
+            if _loop_stopped(state):
+                return state
+            parsed = parse_request(state["messages"][0]["content"])
+            if parsed is None:
+                _escalate(state, "unrecognised_request", "The message is not a known scenario.")
+                return state
+            scenario, entity_id = parsed
+            tenant_id = catalog.entity_tenant(entity_id)
+            if tenant_id is None:
+                _escalate(state, "not_found", "No matching record.")
+                return state
+            token = _token("settlement", tenant_id, state["trace_id"])
+            tool_name = (
+                "claims.create_claim"
+                if scenario == "duplicate_claim"
+                else "payments.propose_payout"
+            )
+            envelope = _invoke(
+                state, catalog, token, "settlement", tool_name, {"entity_id": entity_id}
+            )
+            data = _require(envelope)
+            if data is not None and scenario == "payout_above_authority":
+                claim = catalog.claims.get(str(data["claim_id"]))
+                if claim is not None:
+                    data = {**data, "adjuster_id": claim["adjuster_id"]}
+            answer = None if data is None else _project(data, ANSWER_FIELDS[scenario])
+            if answer is None:
+                _escalate(state, "not_found", "The settlement read did not return the answer.")
+                return state
+            destination = "claim_draft" if scenario == "duplicate_claim" else "proposed_payout"
+            _publish(state, provider, token, "settlement", answer, destination=destination)
+        return state
+
+    return settlement
+
+
+def make_documents(catalog: Catalog, provider: ModelProvider) -> Any:
+    def documents(state: AgentState) -> AgentState:
+        with span("node.documents", trace_id=state["trace_id"]):
+            _enter(state, "documents")
+            if _loop_stopped(state):
+                return state
+            parsed = parse_request(state["messages"][0]["content"])
+            if parsed is None:
+                _escalate(state, "unrecognised_request", "The message is not a known scenario.")
+                return state
+            _scenario, entity_id = parsed
+            tenant_id = catalog.entity_tenant(entity_id)
+            if tenant_id is None:
+                _escalate(state, "not_found", "No matching record.")
+                return state
+            token = _token("documents", tenant_id, state["trace_id"])
+            envelope = _invoke(
+                state, catalog, token, "documents", "docs.get_clause", {"entity_id": entity_id}
+            )
+            data = _require(envelope)
+            answer = None if data is None else _project(data, ANSWER_FIELDS["document_injection"])
+            if answer is None:
+                _escalate(state, "not_found", "The document read did not return the answer.")
+                return state
+            _publish(state, provider, token, "documents", answer, destination="claim_draft")
+        return state
+
+    return documents
 
 
 def make_finish() -> Any:

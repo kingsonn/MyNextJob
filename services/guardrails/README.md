@@ -1,1 +1,1 @@
-Input, context, and output checks. Not implemented in Phase 0.
+Input, context, planning, tool, and output checks, plus reversible PII tokens and the append-only audit log.

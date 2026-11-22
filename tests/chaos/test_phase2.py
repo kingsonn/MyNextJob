@@ -19,7 +19,7 @@ from services.contracts.provider import (
 )
 from services.contracts.state import AgentState
 from services.gateway.approvals import ApprovalBook, create_app
-from services.gateway.budget import BudgetCaps, BudgetState, decide
+from services.gateway.budget import BudgetCaps, BudgetState, charge, decide
 from services.gateway.cache import SemanticCache
 from services.gateway.fake import ChaosProvider, retry_call
 from services.gateway.idempotency import RECLAIM_SQL, MemoryIdempotency
@@ -466,3 +466,60 @@ def test_missing_approval_token_does_not_pay() -> None:
     assert ledger_for(catalog).writes == 0
     proposed = call_tool(catalog, _token(), "payments.propose_payout", {"entity_id": "pay_000001"})
     assert proposed.data["requires_approval"] is True
+
+
+def test_injected_loops_are_caught_before_the_step_cap() -> None:
+    limits = LoopLimits()
+    patterns = ("consecutive", "signature", "tools", "no_progress")
+    caught = 0
+    for index in range(20):
+        kind = patterns[index % len(patterns)]
+        signatures: list[str] = []
+        facts: list[str] = []
+        reason = None
+        steps = 0
+        for step in range(1, limits.max_steps + 3):
+            steps = step
+            if kind == "consecutive":
+                signatures.append("same")
+            elif kind == "signature":
+                signatures.append("a" if step % 2 else "b")
+            elif kind == "tools":
+                signatures.append(f"tool-{step}")
+            else:
+                signatures.append(f"step-{step}")
+                facts.append("same-fact")
+            tool_calls = step if kind == "tools" else 0
+            reason = loop_reason(
+                step,
+                signatures,
+                tool_calls,
+                limits=limits,
+                fact_hashes=facts or None,
+            )
+            if reason is not None:
+                break
+        if reason is not None and steps <= limits.max_steps:
+            caught += 1
+    assert caught / 20 >= 0.95
+
+
+def test_twenty_sessions_stay_inside_the_token_budget() -> None:
+    caps = BudgetCaps(
+        session_tokens=100,
+        tenant_shadow_micros=1_000_000,
+        prices_per_token_micros={"cheap": 1},
+    )
+    over = 0
+    for _ in range(20):
+        state = BudgetState(remaining_tokens=caps.session_tokens, shadow_micros=0, tier="cheap")
+        spent = 0
+        for _step in range(10):
+            action = decide(state, 30, caps, cache_hit=False)
+            if action != "allow":
+                break
+            charge(state, 30, caps)
+            spent += 30
+        if spent > caps.session_tokens or state.remaining_tokens < 0:
+            over += 1
+    assert over == 0
