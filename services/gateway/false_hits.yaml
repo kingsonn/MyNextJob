@@ -1,0 +1,10 @@
+pairs:
+  - cached: "what is a deductible?"
+    probe: "what is a deductible?"
+    same_meaning: true
+  - cached: "what is a deductible?"
+    probe: "what is a premium?"
+    same_meaning: false
+  - cached: "what is a deductible?"
+    probe: "what is a deductible for a claim?"
+    same_meaning: false

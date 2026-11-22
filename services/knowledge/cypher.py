@@ -29,8 +29,15 @@ LIMIT 1
 RETURN $provider_id AS provider_id, claim_ids
 """
 
+IMPACT = """
+MATCH (endorsement:Endorsement {id: $endorsement_id, tenant_id: $tenant_id})
+MATCH (policy:Policy {id: endorsement.policy_id, tenant_id: $tenant_id, status: 'active'})
+RETURN endorsement.id AS endorsement_id, collect(DISTINCT policy.id) AS policy_ids
+"""
+
 TEMPLATES = {
     "graph.coverage_path": COVERAGE_PATH,
     "graph.shared_contact": SHARED_CONTACT,
     "graph.provider_cluster": PROVIDER_CLUSTER,
+    "graph.impact": IMPACT,
 }

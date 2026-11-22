@@ -1,0 +1,37 @@
+tasks:
+  classification:
+    risk: read_only
+    primary: local
+    approval: false
+    escalate_on: [low_confidence]
+  faq:
+    risk: read_only
+    primary: cache
+    approval: false
+    escalate_on: [citation_failed]
+  extraction:
+    risk: reversible_write
+    primary: fast
+    approval: false
+    escalate_on: [schema_validation]
+  coverage:
+    risk: read_only
+    primary: strong
+    approval: false
+    escalate_on: [guardrail_disagreement]
+  payout:
+    risk: financial
+    primary: strong
+    approval: true
+    escalate_on: []
+  voice:
+    risk: read_only
+    primary: local
+    approval: false
+    escalate_on: []
+prices_per_token_micros:
+  cache: 0
+  local: 1
+  fast: 10
+  strong: 100
+  human: 0

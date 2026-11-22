@@ -369,6 +369,16 @@ class Catalog:
         ]
         return {"phone": phone, "address": address, "customer_ids": sorted(members)}
 
+    def endorsement_impact(self, tenant_id: str, entity_id: str) -> dict[str, Any] | None:
+        row = self.endorsements.get(entity_id)
+        if row is None or _text(row["tenant_id"]) != tenant_id:
+            return None
+        policy = self.policies.get(_text(row["policy_id"]))
+        policy_ids: list[str] = []
+        if policy is not None and _text(policy["status"]) == "active":
+            policy_ids.append(_text(policy["id"]))
+        return {"endorsement_id": entity_id, "policy_ids": policy_ids}
+
     def provider_cluster(self, tenant_id: str, entity_id: str) -> dict[str, Any] | None:
         provider = self.providers.get(entity_id)
         if provider is None or _text(provider["tenant_id"]) != tenant_id:

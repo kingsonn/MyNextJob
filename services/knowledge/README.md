@@ -1,1 +1,1 @@
-Deterministic clause retrieval and the coverage-graph predicates. Memory layers are not built.
+Deterministic clause retrieval, coverage-graph predicates, and the memory layers. Embeddings are a hashing trick. The graph tools answer from memory, and the Cypher templates are the parameterised queries a Neo4j loader would run.

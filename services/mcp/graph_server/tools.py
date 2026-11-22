@@ -32,6 +32,14 @@ def _ring(catalog: Catalog, token: ScopedToken, arguments: BaseModel) -> ToolEnv
     return ok_envelope("graph.shared_contact", token.trace_id, data)
 
 
+def _impact(catalog: Catalog, token: ScopedToken, arguments: BaseModel) -> ToolEnvelope:
+    query = cast(EntityQuery, arguments)
+    data = catalog.endorsement_impact(token.tenant_id, query.entity_id)
+    if data is None:
+        return _missing("graph.impact", token)
+    return ok_envelope("graph.impact", token.trace_id, data)
+
+
 def _cluster(catalog: Catalog, token: ScopedToken, arguments: BaseModel) -> ToolEnvelope:
     query = cast(EntityQuery, arguments)
     data = catalog.provider_cluster(token.tenant_id, query.entity_id)
@@ -66,6 +74,15 @@ GRAPH_TOOLS: tuple[ToolSpec, ...] = (
         "not_applicable",
         EntityQuery,
         _cluster,
+        "graph",
+    ),
+    ToolSpec(
+        "graph.impact",
+        "List active policies affected by an endorsement.",
+        "read_only",
+        "not_applicable",
+        EntityQuery,
+        _impact,
         "graph",
     ),
 )

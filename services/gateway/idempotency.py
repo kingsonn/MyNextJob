@@ -100,9 +100,7 @@ class MemoryIdempotency:
         with self._lock:
             return self._begin(tenant_id, key, request_hash, now, ttl)
 
-    def fail(
-        self, tenant_id: str, key: str, state: str, response: dict[str, Any]
-    ) -> None:
+    def fail(self, tenant_id: str, key: str, state: str, response: dict[str, Any]) -> None:
         if state not in {"failed_retryable", "failed_final"}:
             raise ValueError("unsupported failure state")
         with self._lock:

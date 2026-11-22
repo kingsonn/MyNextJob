@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "claimpilot"
 version = "0.1.0"
-description = "Claims agent control plane. Phase 1 adds the core agent and offline evaluation."
+description = "Claims agent control plane. Phase 3 adds routing, retrieval, memory, and PDF ingestion."
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "MIT" }
@@ -19,6 +19,7 @@ dependencies = [
     "opentelemetry-api==1.45.2",
     "opentelemetry-sdk==1.45.2",
     "psycopg[binary]==3.3.9",
+    "pypdf==7.1.1",
     "pydantic==2.14.4",
     "pyyaml==6.0.4",
     "redis==8.1.0",
@@ -53,6 +54,7 @@ packages = [
     "services.mcp.payments_server",
     "services.gateway",
     "services.legacy_portal",
+    "services.ingestion",
     "services.orchestrator",
     "evals",
     "evals.runners",
@@ -107,5 +109,7 @@ module = [
     "redis.*",
     "starlette",
     "starlette.*",
+    "pypdf",
+    "pypdf.*",
 ]
 ignore_missing_imports = true

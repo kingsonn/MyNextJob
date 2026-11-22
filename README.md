@@ -1,6 +1,6 @@
 # ClaimPilot
 
-ClaimPilot is a control plane for an insurance-claims agent. Phase 1 runs a supervisor with intake, verification, and coverage workers over the seeded book. Phase 2 adds idempotent payouts and portal notes, loop and budget limits, a provider pool, and an approval page. Model calls go through one provider interface and tests use a scripted fake.
+ClaimPilot is a control plane for an insurance-claims agent. Phase 1 runs a supervisor with intake, verification, and coverage workers over the seeded book. Phase 2 adds idempotent payouts and portal notes, loop and budget limits, a provider pool, and an approval page. Phase 3 adds the model router, hybrid retrieval, memory, and PDF ingestion. Model calls go through one provider interface and tests use a scripted fake.
 
 All people, policies, claims, and payments in this repository are synthetic. Phone numbers use the reserved `555-01xx` range. Email addresses use `example.com`, `example.net`, and `example.org`. Policy documents carry the watermark `SYNTHETIC - NOT A REAL POLICY`. Nothing here is a real customer or a real payment rail.
 
@@ -41,7 +41,7 @@ python -m generator write
 
 ## Results
 
-Only the trajectory row has been measured. The other rows have not been run.
+Trajectory, routing, cache safety, and the multi-hop gap below are offline measurements. Live-provider rows have not been run.
 
 | Area | Target | Result |
 | --- | --- | --- |
@@ -49,10 +49,10 @@ Only the trajectory row has been measured. The other rows have not been run.
 | Durability | 100% of 50 crash trials resume | one crash reconcile is covered; the 50-trial run is not |
 | Loop control | 95% or more of injected loops caught | hard caps, signature, and no-progress stops are covered; no corpus rate yet |
 | Cost control | 0 sessions over budget | budget decisions hand off in chaos tests; session cost is not measured |
-| Routing | 40% or more lower cost, accuracy within 2 points | not measured |
-| Semantic cache | 30% or more hit rate on repeated FAQ traffic | not measured |
-| Cache safety | 0 cross-tenant leaks | 0 in the tenant-isolation test |
-| Knowledge graph | at least 15 points above vector-only RAG | not measured |
+| Routing | 40% or more lower cost, accuracy within 2 points | shadow price on 30 scripted tasks is about 66% below the strong tier; accuracy is not a live-model score |
+| Semantic cache | 30% or more hit rate on repeated FAQ traffic | exact repeats hit; a production traffic rate is not measured |
+| Cache safety | 0 cross-tenant leaks | 0 in the tenant-isolation test; 0 false hits on the labelled near-duplicate set |
+| Knowledge graph | at least 15 points above vector-only RAG | 100-point gap on 60 multi-hop questions; simple questions use the same retrieval path |
 | Guardrails | 90% or more block rate, false positives under 3% | not measured |
 | Trajectory quality | 85% or more average score | 0.94 mean on the 30 golden scenarios (`evals/baselines/phase-1.json`) |
 | Voice | p50 under 1.5 s, p95 under 3 s | not measured |
@@ -60,4 +60,4 @@ Only the trajectory row has been measured. The other rows have not been run.
 
 ## Limitations
 
-Phases 3 through 6 are not built. There is no model router, no guardrail stack, no voice agent, and no browser agent that recovers from a portal layout change. The approval page uses one synthetic adjuster token, not a role matrix. Nine of the 30 golden scenarios still escalate because payout, portal, and document paths are not on the Phase 1 route; their outcome score is 0 and the outcome mean is 0.70. Retrieval and the budget cache use a deterministic hashing embedding, not a model, and the graph tools answer from memory rather than Neo4j. Chaos tests do not open Redis or Postgres. Langfuse starts empty aside from the hello-world trace. Policy documents are clean text and PDF renderings, not the scanned corpus.
+Phases 4 through 6 are not built. There is no guardrail stack, no voice agent, no admin console, and no browser agent that recovers from a portal layout change. The approval page uses one synthetic adjuster token, not a role matrix. Nine of the 30 golden scenarios still escalate because payout, portal, and document paths are not on the Phase 1 route; their outcome score is 0 and the outcome mean is 0.70. Retrieval, the cache, and reranking use a hashing embedding, not a model. Graph tools answer from memory; the Cypher is parameterised and Neo4j is not on the test path. Scanned PDFs have no text layer, so the OCR result is an unreadable page flagged for review rather than a Tesseract transcript. Memory and document versions are in-memory because the schema appendix does not define those tables. Chaos tests do not open Redis or Postgres. Langfuse starts empty aside from the hello-world trace.

@@ -14,6 +14,26 @@ def _text(value: object) -> str:
     return value
 
 
+def _optional(row: dict[str, object], key: str) -> str:
+    value = row.get(key, "")
+    return value if isinstance(value, str) else ""
+
+
+def _matches(value: str, expected: str | None) -> bool:
+    return expected is None or value == expected
+
+
+def _keyword(query_terms: set[str], text: str) -> float:
+    if not query_terms:
+        return 0.0
+    return len(query_terms & set(tokens(text))) / len(query_terms)
+
+
+def _rank(chunks: list[_Chunk], score_of: Any) -> dict[int, int]:
+    ordered = sorted(chunks, key=lambda chunk: (-float(score_of(chunk)), chunk.clause_id))
+    return {id(chunk): index for index, chunk in enumerate(ordered, start=1)}
+
+
 @dataclass(frozen=True)
 class SourceDocument:
     document_id: str
@@ -29,6 +49,9 @@ class _Chunk:
     clause_id: str
     page: int
     text: str
+    parent: str
+    policy_type: str
+    jurisdiction: str
     effective_start: str
     effective_end: str
     embedding: tuple[float, ...]
@@ -48,6 +71,9 @@ class ChunkIndex:
                     clause_id=_text(row["clause_id"]),
                     page=page if isinstance(page, int) else 0,
                     text=_text(row["text"]),
+                    parent=_optional(row, "parent"),
+                    policy_type=_optional(row, "policy_type"),
+                    jurisdiction=_optional(row, "jurisdiction"),
                     effective_start=_text(row["effective_start"]),
                     effective_end=_text(row["effective_end"]),
                     embedding=embed(_text(row["text"])),
@@ -56,25 +82,48 @@ class ChunkIndex:
         self.chunks = chunks
 
     def search(
-        self, tenant_id: str, policy_id: str, query: str, on_date: str
+        self,
+        tenant_id: str,
+        policy_id: str,
+        query: str,
+        on_date: str,
+        *,
+        limit: int = 3,
+        policy_type: str | None = None,
+        jurisdiction: str | None = None,
     ) -> list[dict[str, Any]]:
-        query_embedding = embed(query)
+        """Keyword plus vector search, fused with reciprocal rank and a token rerank."""
+
+        candidates = [
+            chunk
+            for chunk in self.chunks
+            if chunk.tenant_id == tenant_id
+            and chunk.policy_id == policy_id
+            and chunk.effective_start <= on_date <= chunk.effective_end
+            and _matches(chunk.policy_type, policy_type)
+            and _matches(chunk.jurisdiction, jurisdiction)
+        ]
+        if not candidates:
+            return []
         query_terms = set(tokens(query))
-        scored: list[tuple[float, str, _Chunk]] = []
-        for chunk in self.chunks:
-            if chunk.tenant_id != tenant_id or chunk.policy_id != policy_id:
-                continue
-            if not (chunk.effective_start <= on_date <= chunk.effective_end):
-                continue
-            keyword = 0.0
-            if query_terms:
-                keyword = len(query_terms & set(tokens(chunk.text))) / len(query_terms)
-            cosine = sum(
+        query_embedding = embed(query)
+        keyword_rank = _rank(candidates, lambda chunk: _keyword(query_terms, chunk.text))
+        vector_rank = _rank(
+            candidates,
+            lambda chunk: sum(
                 left * right for left, right in zip(query_embedding, chunk.embedding, strict=True)
+            ),
+        )
+        fused = [
+            (
+                (1.0 / (60 + keyword_rank[id(chunk)])) + (1.0 / (60 + vector_rank[id(chunk)])),
+                _keyword(query_terms, chunk.text),
+                chunk,
             )
-            score = (0.5 * keyword) + (0.5 * max(cosine, 0.0))
-            scored.append((score, chunk.clause_id, chunk))
-        scored.sort(key=lambda item: (-item[0], item[1]))
+            for chunk in candidates
+        ]
+        fused.sort(key=lambda item: (-item[0], item[2].clause_id))
+        reranked = sorted(fused[:10], key=lambda item: (-item[1], item[2].clause_id))
         return [
             {
                 "document_id": chunk.document_id,
@@ -82,6 +131,7 @@ class ChunkIndex:
                 "page": chunk.page,
                 "clause_id": chunk.clause_id,
                 "text": chunk.text,
+                "parent": chunk.parent,
             }
-            for _, _, chunk in scored[:3]
+            for _, _, chunk in reranked[:limit]
         ]

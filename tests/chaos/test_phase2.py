@@ -246,9 +246,13 @@ def test_portal_layouts_conflict_and_crash() -> None:
     crashed.machine.crash_after_effect(
         "ten_01", "portal-2", request_hash(body), NOW, timedelta(seconds=30), recorded
     )
-    replay = portal_app(crashed).test_client().post(
-        "/claims/clm_000191/note",
-        data={"tenant_id": "ten_01", "note": "received", "idempotency_key": "portal-2"},
+    replay = (
+        portal_app(crashed)
+        .test_client()
+        .post(
+            "/claims/clm_000191/note",
+            data={"tenant_id": "ten_01", "note": "received", "idempotency_key": "portal-2"},
+        )
     )
     assert replay.status_code == 200 and crashed.writes == 1
 
@@ -460,7 +464,5 @@ def test_missing_approval_token_does_not_pay() -> None:
     )
     assert refused.error is not None and refused.error.code == "approval_required"
     assert ledger_for(catalog).writes == 0
-    proposed = call_tool(
-        catalog, _token(), "payments.propose_payout", {"entity_id": "pay_000001"}
-    )
+    proposed = call_tool(catalog, _token(), "payments.propose_payout", {"entity_id": "pay_000001"})
     assert proposed.data["requires_approval"] is True
