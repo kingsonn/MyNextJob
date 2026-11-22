@@ -1,0 +1,127 @@
+{
+  "outcome_mean": 0.7,
+  "scenarios": {
+    "golden-001": {
+      "outcome": 1.0,
+      "trajectory": 1.0
+    },
+    "golden-002": {
+      "outcome": 1.0,
+      "trajectory": 1.0
+    },
+    "golden-003": {
+      "outcome": 1.0,
+      "trajectory": 1.0
+    },
+    "golden-004": {
+      "outcome": 1.0,
+      "trajectory": 1.0
+    },
+    "golden-005": {
+      "outcome": 1.0,
+      "trajectory": 1.0
+    },
+    "golden-006": {
+      "outcome": 1.0,
+      "trajectory": 1.0
+    },
+    "golden-007": {
+      "outcome": 0.0,
+      "trajectory": 0.8
+    },
+    "golden-008": {
+      "outcome": 0.0,
+      "trajectory": 0.8
+    },
+    "golden-009": {
+      "outcome": 0.0,
+      "trajectory": 0.8
+    },
+    "golden-010": {
+      "outcome": 1.0,
+      "trajectory": 1.0
+    },
+    "golden-011": {
+      "outcome": 1.0,
+      "trajectory": 1.0
+    },
+    "golden-012": {
+      "outcome": 1.0,
+      "trajectory": 1.0
+    },
+    "golden-013": {
+      "outcome": 1.0,
+      "trajectory": 1.0
+    },
+    "golden-014": {
+      "outcome": 1.0,
+      "trajectory": 1.0
+    },
+    "golden-015": {
+      "outcome": 0.0,
+      "trajectory": 0.8
+    },
+    "golden-016": {
+      "outcome": 0.0,
+      "trajectory": 0.8
+    },
+    "golden-017": {
+      "outcome": 1.0,
+      "trajectory": 1.0
+    },
+    "golden-018": {
+      "outcome": 1.0,
+      "trajectory": 1.0
+    },
+    "golden-019": {
+      "outcome": 1.0,
+      "trajectory": 1.0
+    },
+    "golden-020": {
+      "outcome": 1.0,
+      "trajectory": 1.0
+    },
+    "golden-021": {
+      "outcome": 0.0,
+      "trajectory": 0.8
+    },
+    "golden-022": {
+      "outcome": 0.0,
+      "trajectory": 0.8
+    },
+    "golden-023": {
+      "outcome": 0.0,
+      "trajectory": 0.8
+    },
+    "golden-024": {
+      "outcome": 0.0,
+      "trajectory": 0.8
+    },
+    "golden-025": {
+      "outcome": 1.0,
+      "trajectory": 1.0
+    },
+    "golden-026": {
+      "outcome": 1.0,
+      "trajectory": 1.0
+    },
+    "golden-027": {
+      "outcome": 1.0,
+      "trajectory": 1.0
+    },
+    "golden-028": {
+      "outcome": 1.0,
+      "trajectory": 1.0
+    },
+    "golden-029": {
+      "outcome": 1.0,
+      "trajectory": 1.0
+    },
+    "golden-030": {
+      "outcome": 1.0,
+      "trajectory": 1.0
+    }
+  },
+  "seed": 20261122,
+  "trajectory_mean": 0.94
+}

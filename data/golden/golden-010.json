@@ -1,0 +1,42 @@
+{
+  "answer_key": {
+    "address": "100 Shared Plaza, Synthetic City, eu-central",
+    "customer_ids": [
+      "cus_000351",
+      "cus_000352",
+      "cus_000353",
+      "cus_000354"
+    ],
+    "phone": "+1-555-0100"
+  },
+  "customer_turns": [
+    "Please look at shared_contact_ring for cus_000351 and tell me the outcome."
+  ],
+  "expected_answer": {
+    "address": "100 Shared Plaza, Synthetic City, eu-central",
+    "customer_ids": [
+      "cus_000351",
+      "cus_000352",
+      "cus_000353",
+      "cus_000354"
+    ],
+    "phone": "+1-555-0100"
+  },
+  "expected_state": {
+    "entity_id": "cus_000351",
+    "scenario_type": "shared_contact_ring"
+  },
+  "expected_tool_calls": [
+    {
+      "arguments": {
+        "entity_id": "cus_000351"
+      },
+      "tool": "graph.shared_contact"
+    }
+  ],
+  "id": "golden-010",
+  "seed": 20261122,
+  "tags": [
+    "graph_fraud"
+  ]
+}

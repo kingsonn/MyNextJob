@@ -1,0 +1,1 @@
+Architecture decision records. Phase 0 records the database, idempotency constraint, and template generator. Phase 1 records offline retrieval and the in-memory coverage graph. Phase 2 records offline reliability controls, including the deterministic cache used for budget degradation.

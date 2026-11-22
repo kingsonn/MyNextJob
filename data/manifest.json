@@ -1,0 +1,23 @@
+{
+  "checksum": "337b57ff2318404c7b833db0a1cc648706ee28638997ef85c0a44d039edb1933",
+  "counts": {
+    "adjusters": 40,
+    "claims": 20000,
+    "coverages": 40000,
+    "customers": 5000,
+    "documents": 120,
+    "endorsements": 2500,
+    "faq_pages": 200,
+    "golden": 30,
+    "idempotency_keys": 9000,
+    "interactions": 15000,
+    "payments": 9000,
+    "planted_scenarios": 770,
+    "policies": 8000,
+    "policy_documents": 120,
+    "providers": 400,
+    "tenants": 3
+  },
+  "generator_version": "0.1.0",
+  "seed": 20261122
+}

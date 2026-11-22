@@ -1,0 +1,34 @@
+{
+  "answer_key": {
+    "claim_count": 1,
+    "claim_id": "clm_000141",
+    "idempotency_key": "sub:clm_000141",
+    "rejected_amount": 100001
+  },
+  "customer_turns": [
+    "Please look at duplicate_claim for clm_000141 and tell me the outcome."
+  ],
+  "expected_answer": {
+    "claim_count": 1,
+    "claim_id": "clm_000141",
+    "idempotency_key": "sub:clm_000141",
+    "rejected_amount": 100001
+  },
+  "expected_state": {
+    "entity_id": "clm_000141",
+    "scenario_type": "duplicate_claim"
+  },
+  "expected_tool_calls": [
+    {
+      "arguments": {
+        "entity_id": "clm_000141"
+      },
+      "tool": "claims.create_claim"
+    }
+  ],
+  "id": "golden-007",
+  "seed": 20261122,
+  "tags": [
+    "idempotency"
+  ]
+}

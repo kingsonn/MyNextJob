@@ -1,0 +1,42 @@
+{
+  "answer_key": {
+    "address": "101 Shared Plaza, Synthetic City, us-east",
+    "customer_ids": [
+      "cus_000355",
+      "cus_000356",
+      "cus_000357",
+      "cus_000358"
+    ],
+    "phone": "+1-555-0101"
+  },
+  "customer_turns": [
+    "Please look at shared_contact_ring for cus_000355 and tell me the outcome."
+  ],
+  "expected_answer": {
+    "address": "101 Shared Plaza, Synthetic City, us-east",
+    "customer_ids": [
+      "cus_000355",
+      "cus_000356",
+      "cus_000357",
+      "cus_000358"
+    ],
+    "phone": "+1-555-0101"
+  },
+  "expected_state": {
+    "entity_id": "cus_000355",
+    "scenario_type": "shared_contact_ring"
+  },
+  "expected_tool_calls": [
+    {
+      "arguments": {
+        "entity_id": "cus_000355"
+      },
+      "tool": "graph.shared_contact"
+    }
+  ],
+  "id": "golden-011",
+  "seed": 20261122,
+  "tags": [
+    "graph_fraud"
+  ]
+}

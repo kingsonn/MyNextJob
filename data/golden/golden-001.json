@@ -1,0 +1,41 @@
+{
+  "answer_key": {
+    "claim_id": "clm_000001",
+    "covered": false,
+    "loss_date": "2024-01-02",
+    "policy_end": "2024-01-01",
+    "policy_id": "pol_000001",
+    "policy_start": "2023-01-01",
+    "reason": "loss_date_outside_term"
+  },
+  "customer_turns": [
+    "Please look at loss_outside_window for clm_000001 and tell me the outcome."
+  ],
+  "expected_answer": {
+    "claim_id": "clm_000001",
+    "covered": false,
+    "loss_date": "2024-01-02",
+    "policy_end": "2024-01-01",
+    "policy_id": "pol_000001",
+    "policy_start": "2023-01-01",
+    "reason": "loss_date_outside_term"
+  },
+  "expected_state": {
+    "entity_id": "clm_000001",
+    "scenario_type": "loss_outside_window"
+  },
+  "expected_tool_calls": [
+    {
+      "arguments": {
+        "entity_id": "clm_000001"
+      },
+      "tool": "policy.get_policy"
+    }
+  ],
+  "id": "golden-001",
+  "seed": 20261122,
+  "tags": [
+    "date_logic",
+    "coverage"
+  ]
+}

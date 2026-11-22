@@ -1,0 +1,19 @@
+limits:
+  max_steps: 16
+  max_tool_calls: 8
+  max_identical_consecutive: 3
+  signature_repeats: 3
+  signature_window: 10
+  no_progress_steps: 10
+  requests_per_minute: 60
+budgets:
+  session_tokens: 8000
+  tenant_shadow_micros: 500000
+prices_per_token_micros:
+  cheap: 10
+  strong: 100
+cache:
+  similarity: 0.92
+  verifier_overlap: 0.9
+  ttl_seconds: 3600
+approval_amount: 500000

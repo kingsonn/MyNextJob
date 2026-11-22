@@ -1,0 +1,30 @@
+{
+  "answer_key": {
+    "customer_id": "cus_000002",
+    "language": "fr"
+  },
+  "customer_turns": [
+    "Please look at multilingual for cus_000002 and tell me the outcome."
+  ],
+  "expected_answer": {
+    "customer_id": "cus_000002",
+    "language": "fr"
+  },
+  "expected_state": {
+    "entity_id": "cus_000002",
+    "scenario_type": "multilingual"
+  },
+  "expected_tool_calls": [
+    {
+      "arguments": {
+        "entity_id": "cus_000002"
+      },
+      "tool": "crm.find_customer"
+    }
+  ],
+  "id": "golden-028",
+  "seed": 20261122,
+  "tags": [
+    "language"
+  ]
+}

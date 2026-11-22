@@ -1,0 +1,38 @@
+{
+  "answer_key": {
+    "adjuster_id": "adj_03",
+    "amount": 800000,
+    "authority_limit": 500000,
+    "claim_id": "clm_000192",
+    "payment_id": "pay_000002",
+    "requires_approval": true
+  },
+  "customer_turns": [
+    "Please look at payout_above_authority for pay_000002 and tell me the outcome."
+  ],
+  "expected_answer": {
+    "adjuster_id": "adj_03",
+    "amount": 800000,
+    "authority_limit": 500000,
+    "claim_id": "clm_000192",
+    "payment_id": "pay_000002",
+    "requires_approval": true
+  },
+  "expected_state": {
+    "entity_id": "pay_000002",
+    "scenario_type": "payout_above_authority"
+  },
+  "expected_tool_calls": [
+    {
+      "arguments": {
+        "entity_id": "pay_000002"
+      },
+      "tool": "payments.propose_payout"
+    }
+  ],
+  "id": "golden-016",
+  "seed": 20261122,
+  "tags": [
+    "approval"
+  ]
+}

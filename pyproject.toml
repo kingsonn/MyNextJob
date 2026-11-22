@@ -1,0 +1,111 @@
+[build-system]
+requires = ["setuptools==84.2.1"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "claimpilot"
+version = "0.1.0"
+description = "Claims agent control plane. Phase 1 adds the core agent and offline evaluation."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+dependencies = [
+    "alembic==1.20.1",
+    "faker==40.63.0",
+    "fastapi==0.165.0",
+    "flask==3.1.3",
+    "langgraph==1.2.24",
+    "langgraph-checkpoint-postgres==3.2.1",
+    "opentelemetry-api==1.45.2",
+    "opentelemetry-sdk==1.45.2",
+    "psycopg[binary]==3.3.9",
+    "pydantic==2.14.4",
+    "pyyaml==6.0.4",
+    "redis==8.1.0",
+    "reportlab==5.1.0",
+    "sqlalchemy==2.1.9",
+]
+
+[project.optional-dependencies]
+dev = [
+    "detect-secrets==1.5.0",
+    "mypy==2.4.1",
+    "pre-commit==4.7.0",
+    "pytest==9.2.0",
+    "ruff==0.17.6",
+]
+observability = [
+    "langfuse==5.2.0",
+]
+
+[tool.setuptools]
+packages = [
+    "generator",
+    "db",
+    "services",
+    "services.contracts",
+    "services.catalog",
+    "services.knowledge",
+    "services.mcp",
+    "services.mcp.policy_server",
+    "services.mcp.crm_server",
+    "services.mcp.graph_server",
+    "services.mcp.payments_server",
+    "services.gateway",
+    "services.legacy_portal",
+    "services.orchestrator",
+    "evals",
+    "evals.runners",
+]
+
+[tool.setuptools.package-dir]
+generator = "data/generator"
+db = "db"
+
+[tool.setuptools.package-data]
+generator = ["config.yaml"]
+
+[tool.pytest.ini_options]
+pythonpath = ["data", "."]
+testpaths = ["tests"]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+src = ["data", "db", "services", "evals", "tests", "tools"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["db", "evals", "generator", "services"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+packages = ["generator", "db", "services", "evals"]
+mypy_path = ["data", "."]
+
+[[tool.mypy.overrides]]
+module = [
+    "faker",
+    "faker.*",
+    "reportlab",
+    "reportlab.*",
+    "yaml",
+    "alembic",
+    "alembic.*",
+    "langgraph",
+    "langgraph.*",
+    "opentelemetry",
+    "opentelemetry.*",
+    "fastapi",
+    "fastapi.*",
+    "flask",
+    "flask.*",
+    "redis",
+    "redis.*",
+    "starlette",
+    "starlette.*",
+]
+ignore_missing_imports = true

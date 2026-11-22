@@ -1,0 +1,88 @@
+Metadata-Version: 2.4
+Name: claimpilot
+Version: 0.1.0
+Summary: Claims agent control plane. Phase 0 is the synthetic foundation.
+License: MIT
+Requires-Python: >=3.11
+Description-Content-Type: text/markdown
+License-File: LICENSE
+Requires-Dist: alembic==1.20.1
+Requires-Dist: faker==40.63.0
+Requires-Dist: psycopg[binary]==3.3.9
+Requires-Dist: pydantic==2.14.4
+Requires-Dist: pyyaml==6.0.4
+Requires-Dist: reportlab==5.1.0
+Requires-Dist: sqlalchemy==2.1.9
+Provides-Extra: dev
+Requires-Dist: detect-secrets==1.5.0; extra == "dev"
+Requires-Dist: mypy==2.4.1; extra == "dev"
+Requires-Dist: pre-commit==4.7.0; extra == "dev"
+Requires-Dist: pytest==9.2.0; extra == "dev"
+Requires-Dist: ruff==0.17.6; extra == "dev"
+Provides-Extra: observability
+Requires-Dist: langfuse==5.2.0; extra == "observability"
+Dynamic: license-file
+
+# ClaimPilot
+
+ClaimPilot is a control plane for an insurance-claims agent. Phase 0 is the foundation: a seeded synthetic book of business, the Postgres schema, and the local stack. No agent, gateway, or model calls are implemented yet.
+
+All people, policies, claims, and payments in this repository are synthetic. Phone numbers use the reserved `555-01xx` range. Email addresses use `example.com`, `example.net`, and `example.org`. Policy documents carry the watermark `SYNTHETIC - NOT A REAL POLICY`. Nothing here is a real customer or a real payment rail.
+
+## Quickstart
+
+Install GNU Make, Docker, and Python 3.11 or newer, then:
+
+```bash
+python -m venv .venv
+.venv\Scripts\python -m pip install -e ".[dev]"
+make up
+make test
+```
+
+`make up` starts Postgres with pgvector and Redis, applies migrations, and loads the synthetic book. `make seed` generates and loads again. `make test` runs the offline generator tests and does not start Docker or call a model.
+
+Other profiles stay off until you ask for them:
+
+```bash
+make observability
+make langfuse-hello
+docker compose --env-file deploy/env.example -f deploy/docker-compose.yml --profile graph up -d
+```
+
+`make langfuse-hello` sends one trace named `phase0-hello` to self-hosted Langfuse. The voice profile is reserved for Phase 5 and is not a working voice agent. Starting it downloads local speech models.
+
+Refresh the committed answer key without a database:
+
+```bash
+python -m generator write
+```
+
+## What Phase 0 contains
+
+- Compose profiles for core (Postgres and Redis), graph (Neo4j Community), observability (Langfuse), and voice (pinned local speech images).
+- Alembic schema for the section 14 entities, planted scenarios, and the idempotency table.
+- A deterministic generator at the full suggested volumes, with planted scenarios, 120 watermarked policy documents, and 30 golden conversations.
+
+## Results
+
+Measured in later phases. Nothing below has been run yet.
+
+| Area | Target | Result |
+| --- | --- | --- |
+| Idempotency | 0 duplicate side effects in 1,000 replays | not measured |
+| Durability | 100% of 50 crash trials resume | not measured |
+| Loop control | 95% or more of injected loops caught | not measured |
+| Cost control | 0 sessions over budget | not measured |
+| Routing | 40% or more lower cost, accuracy within 2 points | not measured |
+| Semantic cache | 30% or more hit rate on repeated FAQ traffic | not measured |
+| Cache safety | 0 cross-tenant leaks | not measured |
+| Knowledge graph | at least 15 points above vector-only RAG | not measured |
+| Guardrails | 90% or more block rate, false positives under 3% | not measured |
+| Trajectory quality | 85% or more average score | not measured |
+| Voice | p50 under 1.5 s, p95 under 3 s | not measured |
+| Regression | CI fails on a drop over 3 points | not measured |
+
+## Limitations
+
+Phases 1 through 6 are not built. There is no claims agent, no tool server, no retrieval index, no knowledge-graph load, and no payment state machine. The idempotency table is only the constraint. Langfuse and Neo4j start empty aside from the hello-world trace. Policy documents are clean text and PDF renderings, not the scanned corpus from Phase 3.

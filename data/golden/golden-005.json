@@ -1,0 +1,37 @@
+{
+  "answer_key": {
+    "claim_id": "clm_000062",
+    "effective_date": "2023-07-01",
+    "endorsement_id": "end_000002",
+    "loss_date": "2023-06-15",
+    "rider_applies": false
+  },
+  "customer_turns": [
+    "Please look at rider_timing for end_000002 and tell me the outcome."
+  ],
+  "expected_answer": {
+    "claim_id": "clm_000062",
+    "effective_date": "2023-07-01",
+    "endorsement_id": "end_000002",
+    "loss_date": "2023-06-15",
+    "rider_applies": false
+  },
+  "expected_state": {
+    "entity_id": "end_000002",
+    "scenario_type": "rider_timing"
+  },
+  "expected_tool_calls": [
+    {
+      "arguments": {
+        "entity_id": "end_000002"
+      },
+      "tool": "policy.get_endorsements"
+    }
+  ],
+  "id": "golden-005",
+  "seed": 20261122,
+  "tags": [
+    "knowledge_graph",
+    "rider"
+  ]
+}

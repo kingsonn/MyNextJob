@@ -1,0 +1,37 @@
+{
+  "answer_key": {
+    "canonical_phone": "+1-555-0100",
+    "customer_id": "cus_000212",
+    "interaction_id": "int_000002",
+    "stated_phone": "+1-555-0199",
+    "winner": "crm"
+  },
+  "customer_turns": [
+    "Please look at conflicting_records for cus_000212 and tell me the outcome."
+  ],
+  "expected_answer": {
+    "canonical_phone": "+1-555-0100",
+    "customer_id": "cus_000212",
+    "interaction_id": "int_000002",
+    "stated_phone": "+1-555-0199",
+    "winner": "crm"
+  },
+  "expected_state": {
+    "entity_id": "cus_000212",
+    "scenario_type": "conflicting_records"
+  },
+  "expected_tool_calls": [
+    {
+      "arguments": {
+        "entity_id": "cus_000212"
+      },
+      "tool": "crm.find_customer"
+    }
+  ],
+  "id": "golden-018",
+  "seed": 20261122,
+  "tags": [
+    "memory",
+    "system_of_record"
+  ]
+}

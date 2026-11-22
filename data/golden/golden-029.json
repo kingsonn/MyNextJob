@@ -1,0 +1,33 @@
+{
+  "answer_key": {
+    "customer_id": "cus_000251",
+    "interaction_count": 30,
+    "min_interactions": 30
+  },
+  "customer_turns": [
+    "Please look at long_history for cus_000251 and tell me the outcome."
+  ],
+  "expected_answer": {
+    "customer_id": "cus_000251",
+    "interaction_count": 30,
+    "min_interactions": 30
+  },
+  "expected_state": {
+    "entity_id": "cus_000251",
+    "scenario_type": "long_history"
+  },
+  "expected_tool_calls": [
+    {
+      "arguments": {
+        "entity_id": "cus_000251"
+      },
+      "tool": "crm.list_interactions"
+    }
+  ],
+  "id": "golden-029",
+  "seed": 20261122,
+  "tags": [
+    "memory",
+    "summarisation"
+  ]
+}

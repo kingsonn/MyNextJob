@@ -1,0 +1,1 @@
+Payments MCP server. `payments.propose_payout` reads a seeded payout. `payments.execute_payout` is financial: an amount over the adjuster's authority needs the synthetic adjuster token, and the write goes through the idempotency state machine.

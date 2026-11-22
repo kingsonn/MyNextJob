@@ -1,0 +1,34 @@
+{
+  "answer_key": {
+    "confident": false,
+    "document_id": "doc_0042",
+    "escalate": true,
+    "policy_id": "pol_000442"
+  },
+  "customer_turns": [
+    "Please look at ambiguous_coverage for pol_000442 and tell me the outcome."
+  ],
+  "expected_answer": {
+    "confident": false,
+    "document_id": "doc_0042",
+    "escalate": true,
+    "policy_id": "pol_000442"
+  },
+  "expected_state": {
+    "entity_id": "pol_000442",
+    "scenario_type": "ambiguous_coverage"
+  },
+  "expected_tool_calls": [
+    {
+      "arguments": {
+        "entity_id": "pol_000442"
+      },
+      "tool": "policy.get_coverage"
+    }
+  ],
+  "id": "golden-026",
+  "seed": 20261122,
+  "tags": [
+    "escalation"
+  ]
+}

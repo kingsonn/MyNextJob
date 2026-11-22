@@ -1,0 +1,42 @@
+{
+  "answer_key": {
+    "claim_ids": [
+      "clm_000316",
+      "clm_000317",
+      "clm_000318",
+      "clm_000319",
+      "clm_000320"
+    ],
+    "provider_id": "prv_0005"
+  },
+  "customer_turns": [
+    "Please look at provider_cluster for prv_0005 and tell me the outcome."
+  ],
+  "expected_answer": {
+    "claim_ids": [
+      "clm_000316",
+      "clm_000317",
+      "clm_000318",
+      "clm_000319",
+      "clm_000320"
+    ],
+    "provider_id": "prv_0005"
+  },
+  "expected_state": {
+    "entity_id": "prv_0005",
+    "scenario_type": "provider_cluster"
+  },
+  "expected_tool_calls": [
+    {
+      "arguments": {
+        "entity_id": "prv_0005"
+      },
+      "tool": "graph.provider_cluster"
+    }
+  ],
+  "id": "golden-014",
+  "seed": 20261122,
+  "tags": [
+    "graph_fraud"
+  ]
+}
