@@ -1,0 +1,23 @@
+# Model ids change. Keys stay in the environment, never in this file.
+# Ollama is not running. Groq llama-3.1-8b-instant fills the local/voice slot.
+providers:
+  - name: groq
+    tier: local
+    env: GROQ_API_KEY
+    url: https://api.groq.com/openai/v1/chat/completions
+    model: openai/gpt-oss-20b
+  - name: groq-strong
+    tier: strong
+    env: GROQ_API_KEY
+    url: https://api.groq.com/openai/v1/chat/completions
+    model: openai/gpt-oss-120b
+  - name: cerebras
+    tier: fast
+    env: CEREBRAS_API_KEY
+    url: https://api.cerebras.ai/v1/chat/completions
+    model: gpt-oss-120b
+  - name: gemini
+    tier: strong
+    env: GEMINI_API_KEY
+    url: https://generativelanguage.googleapis.com/v1beta/openai/chat/completions
+    model: gemini-3.8-flash

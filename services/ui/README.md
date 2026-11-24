@@ -1,1 +1,1 @@
-Chat, approvals, and trace replay. Not implemented in Phase 0.
+The admin console and the trace replay page are served by `python -m services.demo`.

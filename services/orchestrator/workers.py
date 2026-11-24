@@ -394,6 +394,36 @@ def make_documents(catalog: Catalog, provider: ModelProvider) -> Any:
     return documents
 
 
+def make_portal(catalog: Catalog, provider: ModelProvider) -> Any:
+    def portal(state: AgentState) -> AgentState:
+        with span("node.portal", trace_id=state["trace_id"]):
+            _enter(state, "portal")
+            if _loop_stopped(state):
+                return state
+            parsed = parse_request(state["messages"][0]["content"])
+            if parsed is None:
+                _escalate(state, "unrecognised_request", "The message is not a known scenario.")
+                return state
+            _scenario, entity_id = parsed
+            tenant_id = catalog.entity_tenant(entity_id)
+            if tenant_id is None:
+                _escalate(state, "not_found", "No matching record.")
+                return state
+            token = _token("portal", tenant_id, state["trace_id"])
+            envelope = _invoke(
+                state, catalog, token, "portal", "browser.read_note", {"entity_id": entity_id}
+            )
+            data = _require(envelope)
+            answer = None if data is None else _project(data, ANSWER_FIELDS["portal_injection"])
+            if answer is None:
+                _escalate(state, "not_found", "The portal read did not return the answer.")
+                return state
+            _publish(state, provider, token, "documents", answer, destination="claim_draft")
+        return state
+
+    return portal
+
+
 def make_finish() -> Any:
     def finish(state: AgentState) -> AgentState:
         with span("node.finish", trace_id=state["trace_id"]):

@@ -3,15 +3,18 @@
 from __future__ import annotations
 
 import html
+import json
+from collections.abc import Iterator
 from datetime import datetime
-from typing import Any, NoReturn
+from typing import Any, NoReturn, cast
 
-from fastapi import FastAPI, Header, HTTPException, Request
-from fastapi.responses import HTMLResponse
+from fastapi import FastAPI, Form, Header, HTTPException, Request
+from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
 from jinja2 import Environment
 from starlette.datastructures import UploadFile
 
 from services.catalog.store import Catalog
+from services.gateway.agent_run import live_events
 from services.gateway.cache import SemanticCache
 from services.guardrails.audit import AuditLog
 from services.guardrails.pii import Vault
@@ -49,6 +52,7 @@ def create_app(
     library: Library | None = None,
     audit: AuditLog | None = None,
     vault: Vault | None = None,
+    traces: dict[str, dict[str, Any]] | None = None,
 ) -> FastAPI:
     app = FastAPI()
     app.state.catalog = catalog
@@ -58,6 +62,17 @@ def create_app(
     app.state.csrf = "csrf-phase4"
     app.state.failures = {}
     app.state.decisions = {}
+    app.state.traces = traces or {}
+    app.state.replay = _unavailable_replay
+
+    @app.middleware("http")
+    async def carry_session(request: Request, call_next: Any) -> Any:
+        token = request.cookies.get("admin_session")
+        if token and "authorization" not in request.headers:
+            headers = list(request.scope["headers"])
+            headers.append((b"authorization", f"Bearer {token}".encode()))
+            request.scope["headers"] = headers
+        return await call_next(request)
 
     def actor(authorization: str | None) -> str:
         if authorization is None or not authorization.startswith("Bearer "):
@@ -72,6 +87,87 @@ def create_app(
     def csrf_ok(request_token: str | None) -> None:
         if request_token != app.state.csrf:
             raise HTTPException(status_code=403, detail="csrf")
+
+    @app.get("/", response_class=HTMLResponse)
+    def home() -> str:
+        form = (
+            "<form method='post' action='/admin/login'>"
+            "<label>Token <input name='token'></label> "
+            "<button>Open</button></form>"
+            "<p>Paste the admin token from deploy/env.example. No model key is required.</p>"
+            "<p><a href='/voice'>Speak or text about a claim</a></p>"
+        )
+        return _page("ClaimPilot", form)
+
+    @app.post("/admin/login")
+    def login(token: str = Form()) -> RedirectResponse:
+        response = RedirectResponse("/admin/claims", status_code=303)
+        response.set_cookie("admin_session", token, httponly=True)
+        return response
+
+    @app.get("/voice", response_class=HTMLResponse)
+    def voice_page() -> str:
+        return _page("Speak", _SPEAK)
+
+    @app.post("/voice/turn")
+    def voice_turn(
+        body: dict[str, Any],
+        authorization: str | None = Header(default=None),
+    ) -> StreamingResponse:
+        actor(authorization)
+        transcript = str(body.get("transcript", "")).strip()
+        raw_history = body.get("history")
+        history = raw_history if isinstance(raw_history, list) else []
+        chat = getattr(app.state, "live_chat", None)
+
+        def chunks() -> Iterator[str]:
+            for event in live_events(app.state.catalog, transcript, chat, history):
+                yield json.dumps(event) + "\n"
+
+        return StreamingResponse(chunks(), media_type="application/x-ndjson")
+
+    @app.get("/admin/traces", response_class=HTMLResponse)
+    def list_traces(authorization: str | None = Header(default=None)) -> str:
+        _need(actor(authorization), _READ_CLAIMS)
+        rows = "".join(
+            f"<li><a href='/admin/traces/{html.escape(item['id'])}'>"
+            f"{html.escape(item['id'])}</a></li>"
+            for item in app.state.traces.values()
+        )
+        return _page("Traces", f"<ul>{rows}</ul>")
+
+    @app.get("/admin/traces/{trace_id}", response_class=HTMLResponse)
+    def trace_detail(trace_id: str, authorization: str | None = Header(default=None)) -> str:
+        _need(actor(authorization), _READ_CLAIMS)
+        item = app.state.traces.get(trace_id)
+        if item is None:
+            raise HTTPException(status_code=404, detail="missing")
+        shown = _shown_trace(app, item)
+        return _page(
+            "Trace",
+            f"<pre>{html.escape(shown)}</pre>"
+            f"<p><a href='/admin/traces/{html.escape(trace_id)}/replay'>Replay</a></p>",
+        )
+
+    @app.get("/admin/traces/{trace_id}/replay", response_class=HTMLResponse)
+    def trace_replay(trace_id: str, authorization: str | None = Header(default=None)) -> str:
+        _need(actor(authorization), _READ_CLAIMS)
+        item = app.state.traces.get(trace_id)
+        if item is None:
+            raise HTTPException(status_code=404, detail="missing")
+        replay = app.state.replay
+        outcome = replay(app.state.catalog, item)
+        return _page("Replay", f"<pre>{html.escape(str(outcome))}</pre>")
+
+    @app.get("/v1/traces/{trace_id}")
+    def trace_json(
+        trace_id: str, authorization: str | None = Header(default=None)
+    ) -> dict[str, Any]:
+        _need(actor(authorization), _READ_CLAIMS)
+        item = app.state.traces.get(trace_id)
+        if item is None:
+            raise HTTPException(status_code=404, detail="missing")
+        return {"trace_id": trace_id, "messages": _shown_trace(app, item)}
 
     @app.get("/admin/claims", response_class=HTMLResponse)
     def claims(authorization: str | None = Header(default=None)) -> str:
@@ -321,11 +417,123 @@ _PAGES = Environment(autoescape=True)
 
 
 def _page(title: str, body: str) -> str:
-    template = _PAGES.from_string(
-        "<!doctype html><html><body><h1>{{ title }}</h1>{{ body | safe }}</body></html>"
+    nav = (
+        "<p><a href='/admin/claims'>Claims</a> "
+        "<a href='/admin/traces'>Traces</a> "
+        "<a href='/admin/documents'>Documents</a> "
+        "<a href='/admin/audit'>Audit</a> "
+        "<a href='/admin/metrics/summary'>Numbers</a></p>"
     )
-    return str(template.render(title=title, body=body))
+    template = _PAGES.from_string(
+        "<!doctype html><html><body><h1>{{ title }}</h1>"
+        "{{ nav | safe }}{{ body | safe }}</body></html>"
+    )
+    return str(template.render(title=title, nav=nav, body=body))
 
 
 def _now() -> datetime:
     return datetime(2026, 1, 1)
+
+
+def _shown_trace(app: FastAPI, item: dict[str, Any]) -> str:
+    return cast(str, app.state.vault.mask(str(item.get("messages", []))))
+
+
+def _unavailable_replay(catalog: Catalog, item: dict[str, Any]) -> dict[str, Any]:
+    return {"error": "replay is not configured"}
+
+
+_SPEAK = """
+<style>
+#call { font-size: 1.3rem; padding: 0.8rem 1.6rem; border-radius: 999px; }
+#send { font-size: 1.1rem; padding: 0.7rem 1.2rem; margin-left: 0.5rem; }
+#log { list-style: none; padding: 0; max-width: 40rem; }
+#log li { margin: 0.35rem 0; }
+</style>
+<p>Sign in first. Start a call to use the microphone, or keep typing in the box.
+Text replies stay on the page and are not spoken. Each line shows the steps.</p>
+<textarea id="said" rows="3" cols="60">what is the status of clm_000001</textarea>
+<p><button type="button" id="call">Start call</button>
+<button type="button" id="send">Send text</button></p>
+<ul id="log"></ul>
+<script>
+const said = document.getElementById("said");
+const log = document.getElementById("log");
+const history = [];
+let busy = false;
+function add(text) {
+  const item = document.createElement("li");
+  item.textContent = text;
+  log.appendChild(item);
+  item.scrollIntoView({block: "nearest"});
+}
+function say(text) {
+  if (!window.speechSynthesis) { return; }
+  window.speechSynthesis.speak(new SpeechSynthesisUtterance(text));
+}
+async function run(transcript, aloud) {
+  const text = transcript.trim();
+  if (!text || busy) { return; }
+  busy = true;
+  add("You: " + text);
+  if (aloud) {
+    add("Agent: Let me pull that up.");
+    say("Let me pull that up.");
+  }
+  const response = await fetch("/voice/turn", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({transcript: text, history: history})
+  });
+  if (!response.ok || !response.body) {
+    add("Sign in on the home page, then come back.");
+    busy = false;
+    return;
+  }
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let spoken = [];
+  while (true) {
+    const chunk = await reader.read();
+    if (chunk.done) { break; }
+    buffer += decoder.decode(chunk.value, {stream: true});
+    const lines = buffer.split("\\n");
+    buffer = lines.pop();
+    for (const line of lines) {
+      if (!line) { continue; }
+      const event = JSON.parse(line);
+      if (event.type === "step") { add(event.text); }
+      if (event.type === "done") {
+        add("Provider: " + event.provider);
+        spoken = event.spoken;
+        for (const sentence of event.spoken) {
+          add("Agent: " + sentence);
+          if (aloud) { say(sentence); }
+        }
+      }
+    }
+  }
+  history.push({role: "user", content: text});
+  history.push({role: "assistant", content: spoken.join(" ")});
+  if (!aloud) { said.value = ""; }
+  busy = false;
+}
+document.getElementById("send").onclick = () => { run(said.value, false); };
+said.addEventListener("keydown", (event) => {
+  if (event.key === "Enter" && !event.shiftKey) {
+    event.preventDefault();
+    run(said.value, false);
+  }
+});
+document.getElementById("call").onclick = () => {
+  const Speech = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!Speech) { run(said.value, true); return; }
+  const rec = new Speech();
+  rec.lang = "en-US";
+  rec.onresult = (event) => { run(event.results[0][0].transcript, true); };
+  rec.onerror = () => { run(said.value, true); };
+  rec.start();
+};
+</script>
+"""

@@ -27,7 +27,8 @@ COVERAGE_AFTER = {
 }
 SETTLEMENT = {"duplicate_claim", "payout_above_authority"}
 DOCUMENTS = {"document_injection"}
-UNSUPPORTED = {"portal_injection"}
+PORTAL = {"portal_injection"}
+UNSUPPORTED: set[str] = set()
 
 ANSWER_FIELDS: dict[str, tuple[str, ...]] = {
     "loss_outside_window": (
@@ -69,6 +70,7 @@ ANSWER_FIELDS: dict[str, tuple[str, ...]] = {
         "requires_approval",
     ),
     "document_injection": ("document_id", "injection_present", "marker"),
+    "portal_injection": ("claim_id", "injection_present", "marker"),
 }
 
 

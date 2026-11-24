@@ -1,1 +1,1 @@
-Synthetic legacy claims portal. Three HTML layouts share one `note` field. A posted note is idempotent. This is not the browser agent.
+Synthetic adjuster portal. Three layouts share one note field. The signed-in flow has a timeout, a confirmation page, and an idempotent save.

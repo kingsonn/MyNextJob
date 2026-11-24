@@ -14,6 +14,7 @@ from services.orchestrator.routing import (
     COVERAGE_AFTER,
     DOCUMENTS,
     INTAKE,
+    PORTAL,
     SETTLEMENT,
     VERIFY_FIRST,
     parse_request,
@@ -23,6 +24,7 @@ from services.orchestrator.workers import (
     make_documents,
     make_finish,
     make_intake,
+    make_portal,
     make_settlement,
     make_supervisor,
     make_verification,
@@ -57,15 +59,17 @@ def build_graph(
     builder.add_node("coverage", make_coverage(catalog, provider))
     builder.add_node("settlement", make_settlement(catalog, provider))
     builder.add_node("documents", make_documents(catalog, provider))
+    builder.add_node("portal", make_portal(catalog, provider))
     builder.add_node("finish", make_finish())
     builder.add_edge(START, "supervisor")
     builder.add_conditional_edges(
         "supervisor",
         _route_first,
-        ["intake", "verification", "settlement", "documents", "finish"],
+        ["intake", "verification", "settlement", "documents", "portal", "finish"],
     )
     builder.add_edge("settlement", "finish")
     builder.add_edge("documents", "finish")
+    builder.add_edge("portal", "finish")
     builder.add_edge("intake", "finish")
     builder.add_conditional_edges("verification", _route_after, ["coverage", "finish"])
     builder.add_edge("coverage", "finish")
@@ -122,6 +126,8 @@ def _route_first(state: AgentState) -> str:
         return "settlement"
     if scenario in DOCUMENTS:
         return "documents"
+    if scenario in PORTAL:
+        return "portal"
     return "finish"
 
 

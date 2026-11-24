@@ -1,1 +1,1 @@
-Voice activity detection, speech to text, and speech synthesis. The Compose voice profile only reserves images. The pipeline is Phase 5.
+Claim-status voice path. A fast acknowledgement is spoken before the status lookup. Tests use a scripted recognizer, not the Compose speech containers.

@@ -31,6 +31,8 @@ def load_policy() -> dict[str, dict[str, object]]:
 
 def classify(text: str) -> str:
     lowered = text.lower()
+    if "status" in lowered or "hello" in lowered or "thank" in lowered:
+        return "voice"
     if "payout" in lowered:
         return "payout"
     if "coverage" in lowered or "rider" in lowered:
@@ -39,8 +41,6 @@ def classify(text: str) -> str:
         return "extraction"
     if lowered.startswith("what is"):
         return "faq"
-    if "hello" in lowered or "thank" in lowered:
-        return "voice"
     return "classification"
 
 

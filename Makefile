@@ -1,4 +1,4 @@
-.PHONY: up seed test observability langfuse-hello
+.PHONY: up seed test demo eval observability langfuse-hello
 
 COMPOSE := docker compose --env-file deploy/env.example -f deploy/docker-compose.yml
 
@@ -18,6 +18,12 @@ seed:
 
 test:
 	python -m pytest
+
+demo:
+	python -m services.demo
+
+eval:
+	python -m pytest tests/replay tests/unit/test_phase6.py -q
 
 observability:
 	$(COMPOSE) --profile observability up -d --wait

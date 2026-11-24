@@ -31,6 +31,7 @@ SETTLEMENT_TOOLS = [
     "payments.propose_payout",
 ]
 DOCUMENT_TOOLS = ["docs.get_clause"]
+PORTAL_TOOLS = ["browser.read_note"]
 SUPERVISOR_TOOLS: list[str] = []
 
 ALLOW_LISTS = {
@@ -39,5 +40,6 @@ ALLOW_LISTS = {
     "coverage": COVERAGE_TOOLS,
     "settlement": SETTLEMENT_TOOLS,
     "documents": DOCUMENT_TOOLS,
+    "portal": PORTAL_TOOLS,
     "supervisor": SUPERVISOR_TOOLS,
 }

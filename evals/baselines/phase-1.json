@@ -1,5 +1,5 @@
 {
-  "outcome_mean": 0.9333333333333333,
+  "outcome_mean": 1.0,
   "scenarios": {
     "golden-001": {
       "outcome": 1.0,
@@ -90,12 +90,12 @@
       "trajectory": 1.0
     },
     "golden-023": {
-      "outcome": 0.0,
-      "trajectory": 0.8
+      "outcome": 1.0,
+      "trajectory": 1.0
     },
     "golden-024": {
-      "outcome": 0.0,
-      "trajectory": 0.8
+      "outcome": 1.0,
+      "trajectory": 1.0
     },
     "golden-025": {
       "outcome": 1.0,
@@ -123,5 +123,5 @@
     }
   },
   "seed": 20261122,
-  "trajectory_mean": 0.9866666666666667
+  "trajectory_mean": 1.0
 }

@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "claimpilot"
 version = "0.1.0"
-description = "Claims agent control plane. Phase 3 adds routing, retrieval, memory, and PDF ingestion."
+description = "Claims agent control plane. Phase 6 adds the trace page and the local demo."
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "MIT" }
@@ -28,6 +28,7 @@ dependencies = [
     "redis==8.1.0",
     "reportlab==5.1.0",
     "sqlalchemy==2.1.9",
+    "uvicorn==0.54.0",
 ]
 
 [project.optional-dependencies]
@@ -55,6 +56,12 @@ packages = [
     "services.mcp.crm_server",
     "services.mcp.graph_server",
     "services.mcp.payments_server",
+    "services.mcp.claims_server",
+    "services.mcp.docs_server",
+    "services.mcp.browser_server",
+    "services.browser_agent",
+    "services.voice",
+    "services.demo",
     "services.gateway",
     "services.legacy_portal",
     "services.guardrails",
