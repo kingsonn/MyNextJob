@@ -9,13 +9,14 @@ from datetime import datetime
 from typing import Any, NoReturn, cast
 
 from fastapi import FastAPI, Form, Header, HTTPException, Request
-from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
-from jinja2 import Environment
+from fastapi.responses import HTMLResponse, RedirectResponse, Response, StreamingResponse
 from starlette.datastructures import UploadFile
 
+from services.admin.pages import customer_page, login_page, staff_page
 from services.catalog.store import Catalog
 from services.gateway.agent_run import live_events
 from services.gateway.cache import SemanticCache
+from services.gateway.speech import transcript_from_turn
 from services.guardrails.audit import AuditLog
 from services.guardrails.pii import Vault
 from services.ingestion.adaptive import answer
@@ -88,39 +89,67 @@ def create_app(
         if request_token != app.state.csrf:
             raise HTTPException(status_code=403, detail="csrf")
 
-    @app.get("/", response_class=HTMLResponse)
-    def home() -> str:
-        form = (
-            "<form method='post' action='/admin/login'>"
-            "<label>Token <input name='token'></label> "
-            "<button>Open</button></form>"
-            "<p>Paste the admin token from deploy/env.example. No model key is required.</p>"
-            "<p><a href='/voice'>Speak or text about a claim</a></p>"
-        )
-        return _page("ClaimPilot", form)
+    @app.get("/")
+    def home() -> HTMLResponse:
+        return _desk()
+
+    @app.get("/admin", response_class=HTMLResponse)
+    def admin_home(authorization: str | None = Header(default=None)) -> str:
+        role = _peek(authorization)
+        if role is None:
+            return login_page()
+        return _overview(app, role)
 
     @app.post("/admin/login")
     def login(token: str = Form()) -> RedirectResponse:
-        response = RedirectResponse("/admin/claims", status_code=303)
+        response = RedirectResponse("/admin", status_code=303)
         response.set_cookie("admin_session", token, httponly=True)
         return response
 
-    @app.get("/voice", response_class=HTMLResponse)
-    def voice_page() -> str:
-        return _page("Speak", _SPEAK)
+    @app.get("/voice")
+    def voice_page() -> HTMLResponse:
+        return _desk()
+
+    @app.get("/voice/desk.js")
+    def desk_script() -> Response:
+        return _script("desk.js")
+
+    @app.get("/voice/vad-worklet.js")
+    def vad_script() -> Response:
+        return _script("vad-worklet.js")
 
     @app.post("/voice/turn")
     def voice_turn(
+        request: Request,
         body: dict[str, Any],
         authorization: str | None = Header(default=None),
     ) -> StreamingResponse:
-        actor(authorization)
-        transcript = str(body.get("transcript", "")).strip()
+        if request.cookies.get("customer_session") != "desk":
+            actor(authorization)
+        transcript = transcript_from_turn(body, getattr(app.state, "transcribe", None))
         raw_history = body.get("history")
         history = raw_history if isinstance(raw_history, list) else []
         chat = getattr(app.state, "live_chat", None)
+        audio = isinstance(body.get("audio_wav_base64"), str) and bool(body.get("audio_wav_base64"))
 
         def chunks() -> Iterator[str]:
+            if not transcript:
+                yield json.dumps({"type": "step", "text": "No words recognised"}) + "\n"
+                yield (
+                    json.dumps(
+                        {
+                            "type": "done",
+                            "spoken": ["I didn't catch that."],
+                            "provider": "scripted",
+                            "events": ["fast"],
+                            "end_call": False,
+                        }
+                    )
+                    + "\n"
+                )
+                return
+            if audio:
+                yield json.dumps({"type": "step", "text": "Heard: " + transcript[:180]}) + "\n"
             for event in live_events(app.state.catalog, transcript, chat, history):
                 yield json.dumps(event) + "\n"
 
@@ -134,7 +163,7 @@ def create_app(
             f"{html.escape(item['id'])}</a></li>"
             for item in app.state.traces.values()
         )
-        return _page("Traces", f"<ul>{rows}</ul>")
+        return _page("Traces", f"<h1>Traces</h1><ul>{rows}</ul>")
 
     @app.get("/admin/traces/{trace_id}", response_class=HTMLResponse)
     def trace_detail(trace_id: str, authorization: str | None = Header(default=None)) -> str:
@@ -170,13 +199,40 @@ def create_app(
         return {"trace_id": trace_id, "messages": _shown_trace(app, item)}
 
     @app.get("/admin/claims", response_class=HTMLResponse)
-    def claims(authorization: str | None = Header(default=None)) -> str:
+    def claims(request: Request, authorization: str | None = Header(default=None)) -> str:
         _need(actor(authorization), _READ_CLAIMS)
-        rows = "".join(
-            f"<tr><td>{html.escape(str(row['id']))}</td><td>{html.escape(str(row['status']))}</td></tr>"
+        query = request.query_params.get("q", "").strip().lower()
+        matched = [
+            row
             for row in app.state.catalog.claims.values()
+            if not query
+            or query in str(row["id"]).lower()
+            or query in str(row.get("status", "")).lower()
+            or query in str(row.get("type", "")).lower()
+        ]
+        shown = matched[:40]
+        body_rows = "".join(
+            "<tr>"
+            f"<td><a href='/admin/claims/{html.escape(str(row['id']))}'>"
+            f"{html.escape(str(row['id']))}</a></td>"
+            f"<td>{html.escape(str(row.get('status', '')))}</td>"
+            f"<td>{html.escape(str(row.get('type', '')))}</td>"
+            f"<td>{html.escape(str(row.get('amount', '')))}</td>"
+            f"<td>{html.escape(str(row.get('loss_date', '')))}</td>"
+            f"<td>{html.escape(str(row.get('policy_id', '')))}</td>"
+            "</tr>"
+            for row in shown
         )
-        return _page("Claims", f"<table>{rows}</table>")
+        return _page(
+            "Claims",
+            "<h1>Claims</h1>"
+            f"<p>{len(matched)} match the filter. Showing {len(shown)}.</p>"
+            "<form method='get'><label>Search "
+            f"<input name='q' value='{html.escape(query)}'></label> "
+            "<button>Find</button></form>"
+            "<table><tr><th>Claim</th><th>Status</th><th>Type</th>"
+            f"<th>Amount</th><th>Loss date</th><th>Policy</th></tr>{body_rows}</table>",
+        )
 
     @app.get("/admin/claims/{claim_id}", response_class=HTMLResponse)
     def claim_detail(claim_id: str, authorization: str | None = Header(default=None)) -> str:
@@ -195,8 +251,17 @@ def create_app(
         if customer is not None:
             phone = app.state.vault.mask(str(customer["phone"]))
         body = (
-            f"<p>{html.escape(claim_id)}</p><p>{phone}</p><p>{citations}</p>"
-            f"<p>trace:{html.escape(str(decision.get('trace_id', '')))}</p>"
+            f"<h1>{html.escape(claim_id)}</h1>"
+            "<table>"
+            f"<tr><th>Status</th><td>{html.escape(str(row.get('status', '')))}</td></tr>"
+            f"<tr><th>Type</th><td>{html.escape(str(row.get('type', '')))}</td></tr>"
+            f"<tr><th>Amount</th><td>{html.escape(str(row.get('amount', '')))}</td></tr>"
+            f"<tr><th>Loss date</th><td>{html.escape(str(row.get('loss_date', '')))}</td></tr>"
+            f"<tr><th>Policy</th><td>{html.escape(str(row.get('policy_id', '')))}</td></tr>"
+            f"<tr><th>Phone</th><td>{html.escape(phone)}</td></tr>"
+            f"<tr><th>Citations</th><td>{citations}</td></tr>"
+            f"<tr><th>Trace</th><td>{html.escape(str(decision.get('trace_id', '')))}</td></tr>"
+            "</table>"
         )
         return _page("Claim", body)
 
@@ -213,17 +278,57 @@ def create_app(
             + "</li>"
             for item in app.state.library.versions.values()
         )
-        return _page("Documents", f"<ul>{rows}</ul>")
+        form = (
+            "<h2>Add a policy PDF</h2>"
+            "<form class='stack' method='post' action='/admin/documents' "
+            "enctype='multipart/form-data'>"
+            "<input type='hidden' name='csrf' value='csrf-phase4'>"
+            "<input type='hidden' name='respond' value='html'>"
+            "<label>Document id <input name='document_id' required></label>"
+            "<label>Version <input name='version' value='v1' required></label>"
+            "<label>Policy id <input name='policy_id' required></label>"
+            "<label>Effective from <input name='effective_from' value='2023-01-01'></label>"
+            "<label>Effective to <input name='effective_to' value='2024-01-01'></label>"
+            "<label>PDF <input type='file' name='file' accept='application/pdf' required></label>"
+            "<button>Upload</button></form>"
+            "<h2>Ask a draft</h2>"
+            "<form class='stack' id='sandbox'>"
+            "<label>Document id <input id='sandbox-id' required></label>"
+            "<label>Question <input id='sandbox-q' required></label>"
+            "<label>On date <input id='sandbox-date' value='2023-06-01'></label>"
+            "<button type='submit'>Ask the draft</button></form>"
+            "<pre id='sandbox-out'></pre>"
+            "<script>"
+            "document.getElementById('sandbox').onsubmit = async (event) => {"
+            "event.preventDefault();"
+            "const id = document.getElementById('sandbox-id').value;"
+            "const response = await fetch('/admin/documents/' + id + '/sandbox-query', {"
+            "method: 'POST',"
+            "headers: {'Content-Type': 'application/json', 'X-CSRF-Token': 'csrf-phase4'},"
+            "body: JSON.stringify({question: document.getElementById('sandbox-q').value,"
+            "on_date: document.getElementById('sandbox-date').value})});"
+            "document.getElementById('sandbox-out').textContent = await response.text();"
+            "};</script>"
+        )
+        return _page(
+            "Policies",
+            "<h1>Policies and documents</h1>"
+            "<p>Upload, then review and publish from the API actions already on this server. "
+            "The customer desk answers from the seeded book. "
+            "A draft is queried here and is not live until you publish it.</p>"
+            f"<ul>{rows}</ul>{form}",
+        )
 
     @app.post("/admin/documents")
     async def upload(
         request: Request,
         authorization: str | None = Header(default=None),
         x_csrf_token: str | None = Header(default=None),
-    ) -> dict[str, Any]:
+    ) -> Any:
         _need(actor(authorization), _ADMIN)
-        csrf_ok(x_csrf_token)
         form = await request.form()
+        posted = form.get("csrf")
+        csrf_ok(x_csrf_token or (str(posted) if posted else None))
         upload_file = form["file"]
         if not isinstance(upload_file, UploadFile):
             raise HTTPException(status_code=400, detail="file required")
@@ -247,7 +352,14 @@ def create_app(
             now=_now(),
             after={"document_id": version.document_id, "flags": version.flags},
         )
-        return {"document_id": version.document_id, "flags": version.flags, "stored_as": "library"}
+        payload = {
+            "document_id": version.document_id,
+            "flags": version.flags,
+            "stored_as": "library",
+        }
+        if str(form.get("respond", "")) == "html":
+            return RedirectResponse("/admin/documents", status_code=303)
+        return payload
 
     @app.get("/admin/documents/{document_id}/ingestion")
     def ingestion(
@@ -350,6 +462,24 @@ def create_app(
         _need(actor(authorization), _AUDIT_READ)
         return {"rows": app.state.audit.search(actor=actor_filter, claim_id=claim_id)}
 
+    @app.get("/admin/audit-log", response_class=HTMLResponse)
+    def audit_log(authorization: str | None = Header(default=None)) -> str:
+        _need(actor(authorization), _AUDIT_READ)
+        rows = app.state.audit.search()
+        body = "".join(
+            "<tr>"
+            f"<td>{html.escape(str(row.get('actor', '')))}</td>"
+            f"<td>{html.escape(str(row.get('action', '')))}</td>"
+            f"<td>{html.escape(str(row.get('at', row.get('now', ''))))}</td>"
+            "</tr>"
+            for row in rows
+        )
+        return _page(
+            "Audit",
+            "<h1>Audit log</h1><table><tr><th>Actor</th><th>Action</th><th>When</th></tr>"
+            f"{body}</table>",
+        )
+
     @app.post("/admin/unmask")
     def unmask(
         body: dict[str, str],
@@ -413,22 +543,44 @@ def _fail(app: FastAPI, key: str) -> NoReturn:
     raise HTTPException(status_code=401, detail="token required")
 
 
-_PAGES = Environment(autoescape=True)
+def _script(name: str) -> Response:
+    path = repo_root() / "services" / "admin" / name
+    return Response(path.read_bytes(), media_type="text/javascript")
+
+
+def _desk() -> HTMLResponse:
+    response = HTMLResponse(customer_page())
+    response.set_cookie("customer_session", "desk", httponly=True, samesite="lax")
+    return response
+
+
+def _peek(authorization: str | None) -> str | None:
+    if authorization is None or not authorization.startswith("Bearer "):
+        return None
+    token = authorization.removeprefix("Bearer ").strip()
+    return role_tokens().get(token)
+
+
+def _overview(app: FastAPI, role: str) -> str:
+    counts: dict[str, int] = {}
+    for row in app.state.catalog.claims.values():
+        status = str(row["status"])
+        counts[status] = counts.get(status, 0) + 1
+    cards = "".join(
+        f"<div class='card'><strong>{count}</strong>{html.escape(status)}</div>"
+        for status, count in sorted(counts.items())
+    )
+    return staff_page(
+        "Overview",
+        f"<h1>Overview</h1><p>Signed in as {html.escape(role)}. "
+        "Numbers are the synthetic book in this process.</p>"
+        f"<div class='cards'>{cards}</div>"
+        "<p><a href='/admin/metrics/summary'>Raw metrics</a></p>",
+    )
 
 
 def _page(title: str, body: str) -> str:
-    nav = (
-        "<p><a href='/admin/claims'>Claims</a> "
-        "<a href='/admin/traces'>Traces</a> "
-        "<a href='/admin/documents'>Documents</a> "
-        "<a href='/admin/audit'>Audit</a> "
-        "<a href='/admin/metrics/summary'>Numbers</a></p>"
-    )
-    template = _PAGES.from_string(
-        "<!doctype html><html><body><h1>{{ title }}</h1>"
-        "{{ nav | safe }}{{ body | safe }}</body></html>"
-    )
-    return str(template.render(title=title, nav=nav, body=body))
+    return staff_page(title, body)
 
 
 def _now() -> datetime:
@@ -441,99 +593,3 @@ def _shown_trace(app: FastAPI, item: dict[str, Any]) -> str:
 
 def _unavailable_replay(catalog: Catalog, item: dict[str, Any]) -> dict[str, Any]:
     return {"error": "replay is not configured"}
-
-
-_SPEAK = """
-<style>
-#call { font-size: 1.3rem; padding: 0.8rem 1.6rem; border-radius: 999px; }
-#send { font-size: 1.1rem; padding: 0.7rem 1.2rem; margin-left: 0.5rem; }
-#log { list-style: none; padding: 0; max-width: 40rem; }
-#log li { margin: 0.35rem 0; }
-</style>
-<p>Sign in first. Start a call to use the microphone, or keep typing in the box.
-Text replies stay on the page and are not spoken. Each line shows the steps.</p>
-<textarea id="said" rows="3" cols="60">what is the status of clm_000001</textarea>
-<p><button type="button" id="call">Start call</button>
-<button type="button" id="send">Send text</button></p>
-<ul id="log"></ul>
-<script>
-const said = document.getElementById("said");
-const log = document.getElementById("log");
-const history = [];
-let busy = false;
-function add(text) {
-  const item = document.createElement("li");
-  item.textContent = text;
-  log.appendChild(item);
-  item.scrollIntoView({block: "nearest"});
-}
-function say(text) {
-  if (!window.speechSynthesis) { return; }
-  window.speechSynthesis.speak(new SpeechSynthesisUtterance(text));
-}
-async function run(transcript, aloud) {
-  const text = transcript.trim();
-  if (!text || busy) { return; }
-  busy = true;
-  add("You: " + text);
-  if (aloud) {
-    add("Agent: Let me pull that up.");
-    say("Let me pull that up.");
-  }
-  const response = await fetch("/voice/turn", {
-    method: "POST",
-    headers: {"Content-Type": "application/json"},
-    body: JSON.stringify({transcript: text, history: history})
-  });
-  if (!response.ok || !response.body) {
-    add("Sign in on the home page, then come back.");
-    busy = false;
-    return;
-  }
-  const reader = response.body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = "";
-  let spoken = [];
-  while (true) {
-    const chunk = await reader.read();
-    if (chunk.done) { break; }
-    buffer += decoder.decode(chunk.value, {stream: true});
-    const lines = buffer.split("\\n");
-    buffer = lines.pop();
-    for (const line of lines) {
-      if (!line) { continue; }
-      const event = JSON.parse(line);
-      if (event.type === "step") { add(event.text); }
-      if (event.type === "done") {
-        add("Provider: " + event.provider);
-        spoken = event.spoken;
-        for (const sentence of event.spoken) {
-          add("Agent: " + sentence);
-          if (aloud) { say(sentence); }
-        }
-      }
-    }
-  }
-  history.push({role: "user", content: text});
-  history.push({role: "assistant", content: spoken.join(" ")});
-  if (!aloud) { said.value = ""; }
-  busy = false;
-}
-document.getElementById("send").onclick = () => { run(said.value, false); };
-said.addEventListener("keydown", (event) => {
-  if (event.key === "Enter" && !event.shiftKey) {
-    event.preventDefault();
-    run(said.value, false);
-  }
-});
-document.getElementById("call").onclick = () => {
-  const Speech = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!Speech) { run(said.value, true); return; }
-  const rec = new Speech();
-  rec.lang = "en-US";
-  rec.onresult = (event) => { run(event.results[0][0].transcript, true); };
-  rec.onerror = () => { run(said.value, true); };
-  rec.start();
-};
-</script>
-"""

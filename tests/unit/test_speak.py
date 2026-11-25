@@ -40,6 +40,7 @@ def test_speak_answers_from_the_book_without_a_provider(monkeypatch) -> None:
     assert done["events"] == ["fast", "slow"]
     assert done["spoken"][-1] == "Your claim is submitted."
     assert done["provider"] == "scripted"
+    assert done["end_call"] is False
     assert "clm_000001" not in " ".join(done["spoken"])
     blocked = client.post(
         "/voice/turn",
@@ -48,7 +49,11 @@ def test_speak_answers_from_the_book_without_a_provider(monkeypatch) -> None:
     )
     assert _events(blocked)[-1]["events"] == ["blocked"]
     page = client.get("/voice")
-    assert "Start call" in page.text and "Send text" in page.text
+    assert "Start call" in page.text and "Send text" in page.text and "End call" in page.text
+    assert "Let me pull that up" not in page.text
+    assert "Staff desk" in client.get("/").text
+    assert "Staff token" in client.get("/admin").text
+    assert "Start call" not in client.get("/admin").text
 
 
 def test_live_loop_calls_a_tool_then_speaks() -> None:
@@ -89,6 +94,52 @@ def test_live_loop_calls_a_tool_then_speaks() -> None:
     assert any("Found a record" in step for step in steps)
     assert events[-1]["spoken"] == ["The loss is outside the policy."]
     assert events[-1]["provider"] == "fake"
+    assert events[-1]["end_call"] is False
+
+
+def test_audio_is_transcribed_without_a_network_call(monkeypatch) -> None:
+    monkeypatch.delenv("CLAIMPILOT_LIVE_MODELS", raising=False)
+    monkeypatch.delenv("GROQ_API_KEY", raising=False)
+    seen: list[bytes] = []
+
+    def transcribe(wav: bytes) -> str:
+        seen.append(wav)
+        return "what is the status of clm_000001"
+
+    app = create_app(loss_catalog())
+    app.state.transcribe = transcribe
+    client = TestClient(app)
+    done = _events(
+        client.post(
+            "/voice/turn",
+            headers=_admin(),
+            json={"audio_wav_base64": "UklGRg==", "history": []},
+        )
+    )[-1]
+    assert seen and seen[0].startswith(b"RIFF")
+    assert done["spoken"][-1] == "Your claim is submitted."
+    assert done["end_call"] is False
+
+
+def test_a_transfer_ends_the_call() -> None:
+    def chat(
+        messages: list[dict[str, Any]],
+        tools: list[dict[str, Any]],
+        tier: str,
+    ) -> tuple[str, dict[str, Any]]:
+        return "fake", {"role": "assistant", "content": "I will transfer you to a person."}
+
+    app = create_app(loss_catalog())
+    app.state.live_chat = chat
+    client = TestClient(app)
+    done = _events(
+        client.post(
+            "/voice/turn",
+            headers=_admin(),
+            json={"transcript": "please transfer me"},
+        )
+    )[-1]
+    assert done["end_call"] is True
 
 
 def test_configured_provider_is_tried_and_a_429_moves_on(monkeypatch) -> None:

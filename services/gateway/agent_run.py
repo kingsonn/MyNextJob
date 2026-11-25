@@ -236,7 +236,23 @@ def _done(
         args=(transcript, " ".join(spoken), provider),
         daemon=True,
     ).start()
-    return {"type": "done", "spoken": spoken, "provider": provider, "events": events}
+    text = " ".join(spoken).lower()
+    end_call = any(
+        phrase in text
+        for phrase in (
+            "person to take",
+            "transfer you",
+            "transferring you",
+            "human adjuster",
+        )
+    )
+    return {
+        "type": "done",
+        "spoken": spoken,
+        "provider": provider,
+        "events": events,
+        "end_call": end_call,
+    }
 
 
 def _langfuse(transcript: str, spoken: str, provider: str) -> None:

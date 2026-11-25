@@ -14,7 +14,7 @@ python -m venv .venv
 .venv\Scripts\python -m services.demo
 ```
 
-Open http://127.0.0.1:8080 and paste the `ADMIN_TOKEN` value from `deploy/env.example`. Claims, traces, and replay then use the synthetic book in memory. The Speak link is a call page: the browser speaks "Let me pull that up" immediately, then lists each model and tool while the turn runs. Without keys, the claim fact still comes from the book. With `CLAIMPILOT_LIVE_MODELS=1` in a gitignored `.env`, the demo loads that file at startup and routes voice turns through Groq `openai/gpt-oss-20b` (the stand-in for a local model), Groq `openai/gpt-oss-120b` for coverage questions, then Cerebras `gpt-oss-120b` and Gemini `gemini-3.8-flash` if the earlier provider fails. The customer call can use read-only tools only. Do not put keys in the repo. Ollama is not required.
+Open http://127.0.0.1:8080 for the customer desk. Start a call to keep the microphone open until you press End call or the agent transfers you; Send text stays available either way. Steps stay on the page and are not spoken. Open http://127.0.0.1:8080/admin and paste the `ADMIN_TOKEN` from `deploy/env.example` for claims, traces, audit, and policy upload. Without keys, a claim-status fact still comes from the book. With `CLAIMPILOT_LIVE_MODELS=1` in a gitignored `.env`, the demo loads that file and routes turns through Groq `openai/gpt-oss-20b`, Groq `openai/gpt-oss-120b` for coverage questions, then Cerebras `gpt-oss-120b` and Gemini `gemini-3.8-flash`. The customer call can use read-only tools only. A manual script is in `docs/demo/manual-checks.md`. Do not put keys in the repo. Ollama is not required.
 
 ```bash
 .venv\Scripts\python -m pytest
